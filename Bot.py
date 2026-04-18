@@ -19,12 +19,6 @@ async def synccommands(ctx):
     await bot.tree.sync()
     await ctx.send("同步完成")
 
-# 延遲測試指令
-@bot.command()
-async def ping(ctx):
-    latency = bot.latency * 1000
-    await ctx.send(f"延遲: {latency:.2f}ms")
-
 # yt_dlp與ffmpeg播放設置
 ytdlp_format_options = {
     'format': 'bestaudio/best',
@@ -56,25 +50,15 @@ class YTDLSource(discord.PCMVolumeTransformer):
         loop = loop or asyncio.get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdlp.extract_info(url, download = not stream))
 
-        if 'entries' in data:  # 若是播放清單，取第一首
-            data = data['entries'][0]
-
         filename = data['url'] if stream else ytdlp.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data = data)
 
 # 建立音樂控制面板
 class MusicControlView(discord.ui.View):
     def __init__(self, ctx):
-        super().__init__(timeout = 300)  # 控制面板持續時間為5分鐘
+        super().__init__(timeout = 600)  # 控制面板持續時間為10分鐘
         self.ctx = ctx
         self.user_id = ctx.author.id  
-
-    # 限制只有原操作者能控制
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("這不是你的控制面板！", ephemeral = True)
-            return False
-        return True
 
     # 暫停/繼續按鈕
     @discord.ui.button(label = "暫停/繼續", style = discord.ButtonStyle.primary)
@@ -147,7 +131,7 @@ async def play_next_in_queue(ctx):
     is_playing = True
 
     if ctx.voice_client is None:
-        await ctx.send("我尚未加入語音頻道，請先使用 `/加入語音頻道`")
+        await ctx.send("小貓咪尚未加入語音頻道，請先使用 `/加入語音頻道`")
         is_playing = False
         return
 
@@ -198,7 +182,7 @@ async def 播放音樂(ctx, 網址):
 
     # 檢查是否已連接語音頻道
     if ctx.voice_client is None:
-        await ctx.send("我尚未加入語音頻道，請先使用 `/加入語音頻道`")
+        await ctx.send("Bot尚未加入語音頻道，請先使用 `/加入語音頻道`")
         return
     
     async with ctx.typing():
@@ -220,6 +204,8 @@ async def 播放音樂(ctx, 網址):
 @bot.hybrid_command()
 async def 加入語音頻道(ctx):
     """讓Bot加入語音頻道"""
+    if ctx.interaction:
+        await ctx.defer()
     if ctx.author.voice:
         try:
             await ctx.author.voice.channel.connect(timeout = 10)
